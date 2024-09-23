@@ -25,4 +25,20 @@ fn main() {
 
     let t = true;
     let f: bool = false; // with explicit type annotation
+
+    let numbers: [i32; 5] = [1,2,3,4,5];
+    println!("Numbers Array: {:?}", numbers);
+    let fruits: [&str; 3] = ["Apple", "Banana", "Orange"];
+    println!("Fruits: {:?}", fruits);
+    println!("Fruits Array 1st Element: {}", fruits[2]);
+
+    let human:  (String, i32, bool) = ("Alice".to_string(), 30, false);
+    println!("Human Tuple: {:?}", human);
+
+    let y = {
+        let x = 3;
+        x + 1
+    };
+
+    println!("The value of y is: {y}");
 }
