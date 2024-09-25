@@ -1,5 +1,34 @@
 # learning-rust
 
+## Table of Contents
+
+- [Common Programming Concepts](#common-programming-concepts)
+  * [Difference between `mut` and shadowing](#difference-between--mut--and-shadowing)
+  * [Data Types](#data-types)
+    + [Scalar data types](#scalar-data-types)
+    + [Compound Data Types](#compound-data-types)
+  * [Functions](#functions)
+    + [Statements and Expressions](#statements-and-expressions)
+      - [Statements](#statements)
+      - [Expressions](#expressions)
+    + [Function with Return values](#function-with-return-values)
+  * [Control Flow](#control-flow)
+    + [if statement](#if-statement)
+    + [Repetition with Loops](#repetition-with-loops)
+- [Understanding Ownership](#understanding-ownership)
+  * [Ownership rules](#ownership-rules)
+  * [Variable scope](#variable-scope)
+    + [The `String` type](#the--string--type)
+    + [Memory and Allocation](#memory-and-allocation)
+      - [Variables and Data Interacting with Move](#variables-and-data-interacting-with-move)
+      - [Variables and Data Interacting with Clone](#variables-and-data-interacting-with-clone)
+      - [Stack-Only Data: Copy](#stack-only-data--copy)
+    + [Ownership and Functions](#ownership-and-functions)
+    + [Return Values and Scope](#return-values-and-scope)
+
+<small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
+
+
 ## Common Programming Concepts
 ### Difference between `mut` and shadowing
 
@@ -371,7 +400,7 @@ In the above example, `String::from` requests the memory it needs. The memory is
 }                      // this scope is now over, and s is no longer valid
 ```
 
-Here, we can return the memory of our `String` when `s` goes out of scope, at which point Rust calls a special function for us which is called `drop` automatically.
+Here, we can return the memory of our `String` when `s` goes out of scope, at which point Rust calls a special function for us which is called `drop` automatically, which cleans up the heap memory for the variable.
 
 > *This pattern of deallocating resources at the end of an item's lifetime is sometimes called Resource Acquisition Is Initialization (RAII), especially in C++.*
 
@@ -392,8 +421,167 @@ let s2 = s1;
 ```
 
 You see, `s1` is made up of 3 parts:
-1. a pointer to the memory that holds the contents of the string
-2. length
-3. capacity
+1. a pointer to the memory that holds the contents of the string;
+2. length (how much memory in bytes the contents of the `String` are currently using);
+3. capacity (total amount of memory in bytes that the `String` has received from the allocator)
 
-These parts are stored on the stack
+These parts are stored on the stack, memory which holds the contents of the string is on the heap.
+
+***When we assign s1 to s2, the String data is copied, meaning we copy the pointer, the length, and the capacity that are on the stack. We do not copy the data on the heap that the pointer refers to.***
+
+**What if `s1` and `s2` both go out of scope ? Will they both try to free the same memory when `drop` is called ?**
+
+This is called *double free error* which is a memory safety bug, leading to memory corruption.
+Rust considers `s1` as no longer valid after line `let s2 = s1;`, meaning the following would result in an error:
+
+```rust
+let s1 = String::from("hello");
+let s2 = s1;
+
+println!("{s1}, world!");
+
+/**
+$ cargo run
+   Compiling ownership v0.1.0 (file:///projects/ownership)
+error[E0382]: borrow of moved value: `s1`
+ --> src/main.rs:5:15
+  |
+2 |     let s1 = String::from("hello");
+  |         -- move occurs because `s1` has type `String`, which does not implement the `Copy` trait
+3 |     let s2 = s1;
+  |              -- value moved here
+4 |
+5 |     println!("{s1}, world!");
+  |               ^^^^ value borrowed here after move
+  |
+  = note: this error originates in the macro `$crate::format_args_nl` which comes from the expansion of the macro `println` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider cloning the value if the performance cost is acceptable
+  |
+3 |     let s2 = s1.clone();
+  |                ++++++++
+
+For more information about this error, try `rustc --explain E0382`.
+error: could not compile `ownership` (bin "ownership") due to 1 previous error
+ * /
+```
+
+> *Rust does not do shallow copy here, as it also invalidated the first variable, hence it is called a **move**.*<br>
+> *We would say `s1` is *moved* to `s2`.* <br>
+> *Rust will never automatically create "deep" copies of the data, hence any copying can be assumed to be inexpensive in terms of runtime performance.*
+
+##### Variables and Data Interacting with Clone
+
+```rust
+let s1 = String::from("hello");
+let s2 = s1.clone();
+
+println!("s1 = {s1}, s2 = {s2}");
+
+```
+
+##### Stack-Only Data: Copy
+
+```rust
+let x = 5;
+let y = x;
+
+println!("x = {x}, y = {y}");
+```
+The above code is still valid.
+The reason is that types such as integers that have a known size at compile time are stored entirely on the stack, so copies of the actual values are quick to make. That means there’s no reason we would want to prevent x from being valid after we create the variable y.
+
+Rust has a special annotation called the `Copy` trait that we can place on types that are stored on the stack, as integers are. If a type implements the `Copy` trait, variables that use it do not move, but rather are trivially copied, making them still valid after assignment to another variable.
+
+Rust won’t let us annotate a type with `Copy` if the type, or any of its parts, has implemented the `Drop` trait. If the type needs something special to happen when the value goes out of scope and we add the `Copy` annotation to that type, we’ll get a compile-time error. 
+
+**What types implement the `Copy` trait**
+
+1. Any group of simple scalar values can implement `Copy`.
+2. Nothing that requires allocation or is some form of resource can implement `Copy`.
+    - All the integer types, such as u32.
+    - The Boolean type, bool, with values true and false.
+    - All the floating-point types, such as f64.
+    - The character type, char.
+    - Tuples, if they only contain types that also implement Copy. For example, (i32, i32) implements Copy, but (i32, String) does not.
+
+#### Ownership and Functions
+
+The mechanics of passing a value to a function are similar to those when assigning a value to a variable. Passing a variable to a function will move or copy, just as assignment does.
+
+```rust
+fn main() {
+    let s = String::from("hello");  // s comes into scope
+
+    takes_ownership(s);             // s's value moves into the function...
+                                    // ... and so is no longer valid here
+
+    let x = 5;                      // x comes into scope
+
+    makes_copy(x);                  // x would move into the function,
+                                    // but i32 is Copy, so it's okay to still
+                                    // use x afterward
+
+} // Here, x goes out of scope, then s. But because s's value was moved, nothing
+  // special happens.
+
+fn takes_ownership(some_string: String) { // some_string comes into scope
+    println!("{some_string}");
+} // Here, some_string goes out of scope and `drop` is called. The backing
+  // memory is freed.
+
+fn makes_copy(some_integer: i32) { // some_integer comes into scope
+    println!("{some_integer}");
+} // Here, some_integer goes out of scope. Nothing special happens.
+```
+
+#### Return Values and Scope
+
+Returning values can also transfer ownership. 
+
+```rust
+fn main() {
+    let s1 = gives_ownership();         // gives_ownership moves its return
+                                        // value into s1
+
+    let s2 = String::from("hello");     // s2 comes into scope
+
+    let s3 = takes_and_gives_back(s2);  // s2 is moved into
+                                        // takes_and_gives_back, which also
+                                        // moves its return value into s3
+} // Here, s3 goes out of scope and is dropped. s2 was moved, so nothing
+  // happens. s1 goes out of scope and is dropped.
+
+fn gives_ownership() -> String {             // gives_ownership will move its
+                                             // return value into the function
+                                             // that calls it
+
+    let some_string = String::from("yours"); // some_string comes into scope
+
+    some_string                              // some_string is returned and
+                                             // moves out to the calling
+                                             // function
+}
+
+// This function takes a String and returns one
+fn takes_and_gives_back(a_string: String) -> String { // a_string comes into
+                                                      // scope
+
+    a_string  // a_string is returned and moves out to the calling function
+}
+```
+
+```rust
+fn main() {
+    let s1 = String::from("hello");
+
+    let (s2, len) = calculate_length(s1);
+
+    println!("The length of '{s2}' is {len}.");
+}
+
+fn calculate_length(s: String) -> (String, usize) {
+    let length = s.len(); // len() returns the length of a String
+
+    (s, length)
+}
+```
