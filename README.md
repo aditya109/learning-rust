@@ -358,3 +358,42 @@ let mut s2 = String::from("hello");
 s2.push_str(", world!"); // push_str() appends a literal to a String
 println!("{s2}"); // This will print `hello, world!`
 ```
+
+#### Memory and Allocation
+
+In the above example, `String::from` requests the memory it needs. The memory is automatically returned once the variable that owns it goes out of scope.
+
+```rust
+{                                   // s is not valid here, it’s not yet declared
+    let s = String::from("hello");  // s is valid from this point forward
+
+    // do stuff with s
+}                      // this scope is now over, and s is no longer valid
+```
+
+Here, we can return the memory of our `String` when `s` goes out of scope, at which point Rust calls a special function for us which is called `drop` automatically.
+
+> *This pattern of deallocating resources at the end of an item's lifetime is sometimes called Resource Acquisition Is Initialization (RAII), especially in C++.*
+
+##### Variables and Data Interacting with Move
+
+Let's take an example,
+
+```rust
+let x = 5; // bind 5 to x
+let y = x; // make a copy of value in x and bind it to y
+```
+
+But what if we used string,
+
+```rust
+let s1 = String::from("hello");
+let s2 = s1;
+```
+
+You see, `s1` is made up of 3 parts:
+1. a pointer to the memory that holds the contents of the string
+2. length
+3. capacity
+
+These parts are stored on the stack
