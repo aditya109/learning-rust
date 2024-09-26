@@ -3,7 +3,7 @@
 ## Table of Contents
 
 - [Common Programming Concepts](#common-programming-concepts)
-  * [Difference between `mut` and shadowing](#difference-between--mut--and-shadowing)
+  * [Difference between mut and shadowing](#difference-between-mut-and-shadowing)
   * [Data Types](#data-types)
     + [Scalar data types](#scalar-data-types)
     + [Compound Data Types](#compound-data-types)
@@ -16,21 +16,26 @@
     + [if statement](#if-statement)
     + [Repetition with Loops](#repetition-with-loops)
 - [Understanding Ownership](#understanding-ownership)
-  * [Ownership rules](#ownership-rules)
-  * [Variable scope](#variable-scope)
-    + [The `String` type](#the--string--type)
-    + [Memory and Allocation](#memory-and-allocation)
-      - [Variables and Data Interacting with Move](#variables-and-data-interacting-with-move)
-      - [Variables and Data Interacting with Clone](#variables-and-data-interacting-with-clone)
-      - [Stack-Only Data: Copy](#stack-only-data--copy)
-    + [Ownership and Functions](#ownership-and-functions)
-    + [Return Values and Scope](#return-values-and-scope)
+  * [What is Ownership?](#what-is-ownership)
+    + [Ownership rules](#ownership-rules)
+    + [Variable scope](#variable-scope)
+      - [The String type](#the-string-type)
+      - [Memory and Allocation](#memory-and-allocation)
+        * [Variables and Data Interacting with Move](#variables-and-data-interacting-with-move)
+        * [Variables and Data Interacting with Clone](#variables-and-data-interacting-with-clone)
+        * [Stack-Only Data: Copy](#stack-only-data--copy)
+      - [Ownership and Functions](#ownership-and-functions)
+      - [Return Values and Scope](#return-values-and-scope)
+  * [Referencing and Borrowing](#referencing-and-borrowing)
+    + [Mutable References](#mutable-references)
+    + [Dangling References](#dangling-references)
+  * [The Slice Type](#the-slice-type)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
 
 ## Common Programming Concepts
-### Difference between `mut` and shadowing
+### Difference between mut and shadowing
 
 |     | `mut`                                                                                                        | shadowing                                                                                                                                                                                              |
 | --- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -116,18 +121,13 @@ println!("Human Tuple: {:?}", human);
 ```
 
 3. Slices
-Slices let you reference a contiguous sequence of elements in a collection rather than the whole collection.
-A slice is a kind of reference, so it does not have ownership.
 
-```rust
-
-```
+Refer to [The Slice Type](#the-slice-type).
 
 4. Strings
 
-```rust
+Refer to [The String type](#the-string-type).
 
-```
 
 ### Functions
 
@@ -350,7 +350,7 @@ fn main() {
 ```
 
 ## Understanding Ownership
-
+### What is Ownership
 *Ownership* is a set of rules that govern how a Rust program manages memory. 
 Rust uses an approach where memory is managed through a system of ownership with a set of rules that the compiler checks. 
 If any of the rules are violated, the program won't compile. 
@@ -362,12 +362,12 @@ If any of the rules are violated, the program won't compile.
 > Data access is also faster in stack than in heap, as location pointer has to be followed to access the value in the latter.
 > When your code calls a function, the values passed into the function (including, potentially, pointers to data on the heap) and the function’s local variables get pushed onto the stack. When the function is over, those values get popped off the stack.
 
-### Ownership rules
+#### Ownership rules
 1. Each value in Rust has an *owner*.
 2. There can only be one owner at a time.
 3. When the owner goes out of scope, the values will be dropped.
 
-### Variable scope
+#### Variable scope
 
 ```rust
 {                      // s is not valid here, it’s not yet declared
@@ -377,7 +377,7 @@ If any of the rules are violated, the program won't compile.
 }                      // this scope is now over, and s is no longer valid
 ```
 
-#### The `String` type
+##### The String type
 
 - `String` type can be mutated `s2` from below whereas string literal `s` cannot be mutated.
 
@@ -388,7 +388,7 @@ s2.push_str(", world!"); // push_str() appends a literal to a String
 println!("{s2}"); // This will print `hello, world!`
 ```
 
-#### Memory and Allocation
+##### Memory and Allocation
 
 In the above example, `String::from` requests the memory it needs. The memory is automatically returned once the variable that owns it goes out of scope.
 
@@ -404,7 +404,7 @@ Here, we can return the memory of our `String` when `s` goes out of scope, at wh
 
 > *This pattern of deallocating resources at the end of an item's lifetime is sometimes called Resource Acquisition Is Initialization (RAII), especially in C++.*
 
-##### Variables and Data Interacting with Move
+###### Variables and Data Interacting with Move
 
 Let's take an example,
 
@@ -469,7 +469,7 @@ error: could not compile `ownership` (bin "ownership") due to 1 previous error
 > *We would say `s1` is *moved* to `s2`.* <br>
 > *Rust will never automatically create "deep" copies of the data, hence any copying can be assumed to be inexpensive in terms of runtime performance.*
 
-##### Variables and Data Interacting with Clone
+###### Variables and Data Interacting with Clone
 
 ```rust
 let s1 = String::from("hello");
@@ -479,7 +479,7 @@ println!("s1 = {s1}, s2 = {s2}");
 
 ```
 
-##### Stack-Only Data: Copy
+###### Stack-Only Data: Copy
 
 ```rust
 let x = 5;
@@ -504,7 +504,7 @@ Rust won’t let us annotate a type with `Copy` if the type, or any of its parts
     - The character type, char.
     - Tuples, if they only contain types that also implement Copy. For example, (i32, i32) implements Copy, but (i32, String) does not.
 
-#### Ownership and Functions
+##### Ownership and Functions
 
 The mechanics of passing a value to a function are similar to those when assigning a value to a variable. Passing a variable to a function will move or copy, just as assignment does.
 
@@ -534,7 +534,7 @@ fn makes_copy(some_integer: i32) { // some_integer comes into scope
 } // Here, some_integer goes out of scope. Nothing special happens.
 ```
 
-#### Return Values and Scope
+##### Return Values and Scope
 
 Returning values can also transfer ownership. 
 
@@ -585,3 +585,235 @@ fn calculate_length(s: String) -> (String, usize) {
     (s, length)
 }
 ```
+
+### Referencing and Borrowing
+
+The issue with the above code is we have to return the `String` to the calling function so we can still use the `String` after the call to `calculate_length`, because the `String` was moved into `calculate_length`. Instead, we can provide a reference to the `String` value. This action of creating a reference is called *borrowing*.
+
+```rust
+fn main() {
+    let s1 = String::from("hello");
+
+    let len = calculate_length(&s1); // &s1 refers to s1 but does not own it, hence s1 will not be dropped.
+
+    println!("The length of '{s1}' is {len}.");
+}
+
+fn calculate_length(s: &String) -> usize { // s is a reference to a String
+    s.len()
+} // Here, s goes out of scope. But because it does not have ownership of what it refers to, it is not dropped.
+```
+
+> The opposite of referencing by using & is dereferencing, which is accomplished with the dereference operator, *. 
+
+<span style="color:orange">We **<u>cannot modify</u>** something we are borrowing.</span> References are immutable just as variables.
+
+```rust
+fn main() {
+    let s = String::from("hello");
+
+    change(&s);
+}
+
+fn change(some_string: &String) {
+    some_string.push_str(", world");
+}
+/**
+$ cargo run
+   Compiling ownership v0.1.0 (file:///projects/ownership)
+error[E0596]: cannot borrow `*some_string` as mutable, as it is behind a `&` reference
+ --> src/main.rs:8:5
+  |
+8 |     some_string.push_str(", world");
+  |     ^^^^^^^^^^^ `some_string` is a `&` reference, so the data it refers to cannot be borrowed as mutable
+  |
+help: consider changing this to be a mutable reference
+  |
+7 | fn change(some_string: &mut String) {
+  |                         +++
+
+For more information about this error, try `rustc --explain E0596`.
+error: could not compile `ownership` (bin "ownership") due to 1 previous error
+
+*/
+
+```
+
+#### Mutable References
+
+```rust
+fn main() {
+    let mut s = String::from("hello");
+
+    change(&mut s);
+}
+
+fn change(some_string: &mut String) {
+    some_string.push_str(", world");
+}
+```
+
+Mutable references have one big restriction: <span style="color:orange">If you have a mutable reference to a value, you **<u>cannot have</u>** any other references to that value.</span>
+
+
+```rust
+let mut s = String::from("hello");
+
+let r1 = &mut s;
+let r2 = &mut s;
+
+println!("{}, {}", r1, r2);
+
+/*
+$ cargo run
+   Compiling ownership v0.1.0 (file:///projects/ownership)
+error[E0499]: cannot borrow `s` as mutable more than once at a time
+ --> src/main.rs:5:14
+  |
+4 |     let r1 = &mut s;
+  |              ------ first mutable borrow occurs here
+5 |     let r2 = &mut s;
+  |              ^^^^^^ second mutable borrow occurs here
+6 |
+7 |     println!("{}, {}", r1, r2);
+  |                        -- first borrow later used here
+
+For more information about this error, try `rustc --explain E0499`.
+error: could not compile `ownership` (bin "ownership") due to 1 previous error
+
+*/
+```
+
+> The above restriction prevents something called a *data race*. A *data race* is similar to race condition, but happens when these 3  occur:
+> 1. Two or more pointers access the same data at the same time.
+> 2. At least one of the pointers is being used to write to the data.
+> 3. There's no mechanism being used to synchronise access to the data.
+
+Although, we can use curly brackets to create a new scope, allowing for multiple mutable references, just not simultaneous ones:
+
+```rust
+let mut s = String::from("hello");
+
+{
+    let r1 = &mut s;
+} // r1 goes out of scope here, so we can make a new reference with no problems.
+
+let r2 = &mut s;
+```
+
+Also, <span style="color:orange">If you have a mutable reference to a value, you **<u>cannot have</u>** any other mutable/immutable references to that value.</span>
+
+```rust
+let mut s = String::from("hello");
+
+let r1 = &s; // no problem
+let r2 = &s; // no problem
+let r3 = &mut s; // BIG PROBLEM
+
+println!("{}, {}, and {}", r1, r2, r3);
+
+/*
+$ cargo run
+   Compiling ownership v0.1.0 (file:///projects/ownership)
+error[E0502]: cannot borrow `s` as mutable because it is also borrowed as immutable
+ --> src/main.rs:6:14
+  |
+4 |     let r1 = &s; // no problem
+  |              -- immutable borrow occurs here
+5 |     let r2 = &s; // no problem
+6 |     let r3 = &mut s; // BIG PROBLEM
+  |              ^^^^^^ mutable borrow occurs here
+7 |
+8 |     println!("{}, {}, and {}", r1, r2, r3);
+  |                                -- immutable borrow later used here
+
+For more information about this error, try `rustc --explain E0502`.
+error: could not compile `ownership` (bin "ownership") due to 1 previous error
+
+*/
+```
+
+<span style="color:orange">We also **<u>cannot</u>** have a mutable reference while we have an active scope immutable one to the same value.</span>
+
+```rust
+let mut s = String::from("hello");
+
+let r1 = &s; // no problem
+let r2 = &s; // no problem
+println!("{r1} and {r2}");
+// variables r1 and r2 will not be used after this point
+
+let r3 = &mut s; // no problem
+println!("{r3}");
+```
+
+The scopes of the immutable references `r1` and `r2` end after the `println!` where they are last used, which is before the mutable reference `r3` is created; as the scopes don't overlap, this code is allowed.
+
+#### Dangling References
+
+A *dangling pointer* is one that references a location in memory that may be been given to someone else-by freeing some memory while preserving a pointer to that memory.
+In Rust, this would never happen.
+
+```rust
+fn main() {
+    let reference_to_nothing = dangle();
+}
+
+fn dangle() -> &String { // dangle returns a reference to a String
+
+    let s = String::from("hello"); // s is a new String
+
+    &s // we return a reference to the String, s
+} // Here, s goes out of scope, and is dropped. Its memory goes away.
+  // Danger!
+
+
+/**
+$ cargo run
+   Compiling ownership v0.1.0 (file:///projects/ownership)
+error[E0106]: missing lifetime specifier
+ --> src/main.rs:5:16
+  |
+5 | fn dangle() -> &String {
+  |                ^ expected named lifetime parameter
+  |
+  = help: this function's return type contains a borrowed value, but there is no value for it to be borrowed from
+help: consider using the `'static` lifetime, but this is uncommon unless you're returning a borrowed value from a `const` or a `static`
+  |
+5 | fn dangle() -> &'static String {
+  |                 +++++++
+help: instead, you are more likely to want to return an owned value
+  |
+5 - fn dangle() -> &String {
+5 + fn dangle() -> String {
+  |
+
+error[E0515]: cannot return reference to local variable `s`
+ --> src/main.rs:8:5
+  |
+8 |     &s
+  |     ^^ returns a reference to data owned by the current function
+
+Some errors have detailed explanations: E0106, E0515.
+For more information about an error, try `rustc --explain E0106`.
+error: could not compile `ownership` (bin "ownership") due to 2 previous errors
+
+*/
+
+// Solution here would to return the `String` directly.
+fn no_dangle() -> String {
+    let s = String::from("hello");
+
+    s
+}
+```
+
+TL;DR
+
+- At any given time, you can have either one mutable reference or any number of immutable references.
+- References must always be valid.
+
+### The Slice Type
+
+Slices let you reference a contiguous sequence of elements in a collection rather than the whole collection.
+A slice is a kind of reference, so it does not have ownership.
