@@ -276,15 +276,15 @@ fn main() {
     ```rust
     fn main() {
         let mut counter = 0;
-
+    
         let result = loop {
             counter += 1;
-
+    
             if counter == 10 {
                 break counter * 2;
             }
         };
-
+    
         println!("The result is {result}");
     }
     ```
@@ -298,7 +298,7 @@ fn main() {
         'counting_up: loop {
             println!("count = {count}");
             let mut remaining = 10;
-
+    
             loop {
                 println!("remaining = {remaining}");
                 if remaining == 9 {
@@ -309,7 +309,7 @@ fn main() {
                 }
                 remaining -= 1;
             }
-
+    
             count += 1;
         }
         println!("End count = {count}");
@@ -817,3 +817,468 @@ TL;DR
 
 Slices let you reference a contiguous sequence of elements in a collection rather than the whole collection.
 A slice is a kind of reference, so it does not have ownership.
+
+```rust
+fn first_word(s: &String) -> ?
+```
+
+We don't ownership, so this is fine. But what about return ? *We could return the index of the end of the word, indicated by space.*
+
+```rust
+fn first_word(s: &String) -> usize {
+    let bytes = s.as_bytes();
+    for (i, &item) in bytes.iter().enumerate() {
+        if item == b' ' {
+            return i;
+        }
+    }
+    s.len()
+}
+```
+
+There is a slight problem here. What if we emptied the argument `s` to empty string ?
+
+```rust
+fn main() {
+    let mut s = String::from("hello world");
+
+    let word = first_word(&s); // word will get the value 5
+
+    s.clear(); // this empties the String, making it equal to ""
+
+    // word still has the value 5 here, but there's no more string that
+    // we could meaningfully use the value 5 with. word is now totally invalid!
+}
+```
+
+#### Solution: String Slices
+
+A string slice is a reference to part of a `String`, and looks like this:
+
+```rust
+let s = String::from("hello world");
+
+let hello = &s[0..5]; // string is truncated from start_index to (end_index-1).
+let world = &s[6..11]; // start_index can be dropped [..11] and so can the end_index [3..] can also be written as [3..s.len()], and even both of them can be dropped [..]
+```
+
+The solution to the above would be:
+
+```rust
+fn first_word(s: &String) -> &str {
+    let bytes = s.as_bytes();
+    for (i, &item) in bytes.iter().enumerate() {
+        if item == b' ' {
+            return &s[0..i];
+        }
+    }
+    &s[..]
+}
+```
+
+Now this would not be even valid:
+
+```rust
+fn main() {
+    let mut s = String::from("hello world");
+
+    let word = first_word(&s);
+
+    s.clear(); // error!
+
+    println!("the first word is: {word}");
+}
+
+$ cargo run
+   Compiling ownership v0.1.0 (file:///projects/ownership)
+error[E0502]: cannot borrow `s` as mutable because it is also borrowed as immutable
+  --> src/main.rs:18:5
+   |
+16 |     let word = first_word(&s);
+   |                           -- immutable borrow occurs here
+17 |
+18 |     s.clear(); // error!
+   |     ^^^^^^^^^ mutable borrow occurs here
+19 |
+20 |     println!("the first word is: {word}");
+   |                                  ------ immutable borrow later used here
+
+For more information about this error, try `rustc --explain E0502`.
+error: could not compile `ownership` (bin "ownership") due to 1 previous error
+
+```
+
+> String literals are immutable and `&str` is an immutable reference.
+
+```rust
+fn first_word(s: &str) -> &str {
+
+fn main() {
+    let my_string = String::from("hello world");
+
+    // `first_word` works on slices of `String`s, whether partial or whole
+    let word = first_word(&my_string[0..6]);
+    let word = first_word(&my_string[..]);
+    // `first_word` also works on references to `String`s, which are equivalent
+    // to whole slices of `String`s
+    let word = first_word(&my_string);
+
+    let my_string_literal = "hello world";
+
+    // `first_word` works on slices of string literals, whether partial or whole
+    let word = first_word(&my_string_literal[0..6]);
+    let word = first_word(&my_string_literal[..]);
+
+    // Because string literals *are* string slices already,
+    // this works too, without the slice syntax!
+    let word = first_word(my_string_literal);
+}
+```
+
+## Using Structs to Structure Related Data
+
+### Defining and Instantiating Structs
+
+```rust
+struct User {
+    active: bool,
+    username: String, // if we turn the type to &str, we would need lifetime specifier
+    email: String,
+    sign_in_count: u64,
+}
+
+fn main() {
+    let user1 = User {
+        active: true,
+        username: Sring::from("someusername123"),
+        email: String::from("someone@example.com"),
+        sing_in_count: 1,
+    }
+    user1.email = String:
+    
+	let user2 = User {
+        email: String::from("another@example.com"),
+        ..user1
+    };    
+}
+
+fn build_user(email: String, username: String) -> User {
+    User {
+        active: true,
+        username: username,
+        email: email,
+        sign_in_count: 1,
+    }
+    
+    // also we can write using field init shorthand
+    // User {
+    //     active: true,
+    //     username,
+    //     email,
+    //     sign_in_count: 1,
+    // }
+}
+
+```
+
+#### Tuple Structs
+
+```rust
+struct Color(i32, i32, i32);
+struct Point(i32, i32, i32);
+
+fn main() {
+    let black = Color(0, 0, 0);
+    let origin = Point(0, 0, 0);
+}
+```
+
+#### Unit-like structs without any fields
+
+You can also define structs that don't have fields.
+
+> These can be useful when you need to implement a trait on some type but don't have any data that you want to store in the type itself.
+
+```rust
+struct AlwaysEqual;
+
+fn main() {
+    let subject = AlwaysEqual; // no need for curly brackets or parentheses
+}
+```
+
+**Adding Useful Functionality with Derived Traits**
+
+```rust
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+fn main() {
+    let rect1 = Rectangle{
+        width: 30,
+        height: 50,
+    }
+    println!("rect is {}", rect1);
+}
+
+$ cargo run
+Compiling structs v0.1.0 (/home/aditya-kumar/Work/src/github.com/aditya109/learning-rust/structs)
+error[E0277]: `Rectangle` doesn't implement `std::fmt::Display`
+  --> src/main.rs:13:29
+   |
+13 |     println!("rect1 is {}", rect1);
+   |                             ^^^^^ `Rectangle` cannot be formatted with the default formatter
+   |
+   = help: the trait `std::fmt::Display` is not implemented for `Rectangle`
+   = note: in format strings you may be able to use `{:?}` (or {:#?} for pretty-print) instead
+   = note: this error originates in the macro `$crate::format_args_nl` which comes from the expansion of the macro `println` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+```
+
+Hence the outer attribute,
+
+```rust
+#[derive(Debug)] // outer attribute
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+fn main() {
+    let rect1 = Rectangle {
+        width: 30,
+        height: 50,
+    };
+
+    /**
+     * output
+     * rect1 is Rectangle { width: 30, height: 50 }
+     */
+    println!("rect1 is {rect1:?}");
+    /**
+     * 
+     rect1 is Rectangle {
+        width: 30,
+        height: 50,
+     }
+     */
+    println!("rect1 is {rect1:#?}");
+}
+```
+
+Another way to print the struct object is:
+
+```rust
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+fn main() {
+    let scale = 2;
+    let rect1 = Rectangle {
+        width: dbg!(30 * scale),
+        height: 50,
+    };
+
+    dbg!(&rect1);
+}
+
+$ cargo run
+   Compiling rectangles v0.1.0 (file:///projects/rectangles)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.61s
+     Running `target/debug/rectangles`
+[src/main.rs:10:16] 30 * scale = 60
+[src/main.rs:14:5] &rect1 = Rectangle {
+    width: 60,
+    height: 50,
+}
+
+```
+
+### Method Syntax
+
+Methods are similar to functions, but unlike functions methods are defined within the context of a struct (or an enum or a trait object), and their first parameter is always `self`, which represents the instance of the struct the method is being called on.
+
+```rust
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+impl Rectangle {
+    fn area(&self) -> u32 {
+        self.width * self.height
+    }
+    fn width(&self) -> bool {
+        self.width > 0
+    }
+}
+
+fn main() {
+    let rect1 = Rectangle {
+        width: 30,
+        height: 50,
+    };
+
+    println!(
+        "The area of the rectangle is {} square pixels.",
+        rect1.area()
+    );
+    if rect1.width() {
+        println!("The rectangle has a nonzero width; it is {}", rect1.width);
+    }
+}
+```
+
+#### Where's the -> operator ?
+
+Rust does not have an equivalent to `->` operator, instead, it have *automatic referencing and dereferencing*.
+
+Both of the following are same.
+
+```rust
+p1.distance(&p2);
+(&p1).distance(&p2);
+```
+
+**More examples on methods**
+
+```rust
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+impl Rectangle {
+    fn area(&self) -> u32 {
+        self.width * self.height
+    }
+
+    fn can_hold(&self, other: &Rectangle) -> bool {
+        self.width > other.width && self.height > other.height
+    }
+}
+
+fn main() {
+    let rect1 = Rectangle {
+        width: 30,
+        height: 50,
+    };
+    let rect2 = Rectangle {
+        width: 10,
+        height: 40,
+    };
+    let rect3 = Rectangle {
+        width: 60,
+        height: 45,
+    };
+
+    println!("Can rect1 hold rect2? {}", rect1.can_hold(&rect2));
+    println!("Can rect1 hold rect3? {}", rect1.can_hold(&rect3));
+}
+```
+
+All the function defined within an `impl` block are called *associated functions*. If the function defined within `impl` block does not have `self` as its first parameter.
+
+We can also have multiple `impl` blocks, no reason why we need to do so, but we can, and it is valid.
+
+```rust 
+#[derive(Debug)]
+struct Rectangle {
+    width: u32,
+    height: u32,
+}
+
+impl Rectangle {
+    fn area(&self) -> u32 {
+        self.width * self.height
+    }
+}
+
+impl Rectangle {
+    fn can_hold(&self, other: &Rectangle) -> bool {
+        self.width > other.width && self.height > other.height
+    }
+}
+
+fn main() {
+    let rect1 = Rectangle {
+        width: 30,
+        height: 50,
+    };
+    let rect2 = Rectangle {
+        width: 10,
+        height: 40,
+    };
+    let rect3 = Rectangle {
+        width: 60,
+        height: 45,
+    };
+
+    println!("Can rect1 hold rect2? {}", rect1.can_hold(&rect2));
+    println!("Can rect1 hold rect3? {}", rect1.can_hold(&rect3));
+}
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
