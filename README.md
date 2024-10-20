@@ -16,7 +16,7 @@
     + [if statement](#if-statement)
     + [Repetition with Loops](#repetition-with-loops)
 - [Understanding Ownership](#understanding-ownership)
-  * [What is Ownership?](#what-is-ownership)
+  * [What is Ownership](#what-is-ownership)
     + [Ownership rules](#ownership-rules)
     + [Variable scope](#variable-scope)
       - [The String type](#the-string-type)
@@ -30,6 +30,16 @@
     + [Mutable References](#mutable-references)
     + [Dangling References](#dangling-references)
   * [The Slice Type](#the-slice-type)
+    + [Solution: String Slices](#solution--string-slices)
+- [Using Structs to Structure Related Data](#using-structs-to-structure-related-data)
+  * [Defining and Instantiating Structs](#defining-and-instantiating-structs)
+    + [Tuple Structs](#tuple-structs)
+    + [Unit-like structs without any fields](#unit-like-structs-without-any-fields)
+  * [Method Syntax](#method-syntax)
+    + [Where's the -> operator ?](#where-s-the----operator--)
+- [Enums and Pattern Matching](#enums-and-pattern-matching)
+  * [Defining an Enum](#defining-an-enum)
+    + [Enum Values](#enum-values)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -1225,6 +1235,114 @@ fn main() {
     println!("Can rect1 hold rect3? {}", rect1.can_hold(&rect3));
 }
 ```
+
+## Enums and Pattern Matching
+
+*Enumerations* or enums allow you to define a type by enumerating its possible *variants*. 
+
+### Defining an Enum
+
+```rust
+enum IpAddrKind {
+    V4,
+    V6,
+}
+```
+
+#### Enum Values
+
+```rust
+let four = IpAddrKind::V4;
+let six = IpAddrKind::V6;
+```
+
+```rust'
+fn route(ip_kind: IpAddrKind) {}
+
+route(IpAddrKind::V4);
+route(IpAddrKind::V6);
+```
+
+```rust
+struct IpAddr {
+    kind: IpAddrKind,
+    address: String,
+}
+
+let home = IpAddr {
+    kind: IpAddrKind::V4,
+    address: String::from("127.0.0.1"),
+}
+
+let loopback = IpAddr {
+    kind: IpAddrKind::V6,
+    address: String::from("::1"),
+}
+```
+
+```rust
+struct Ipv4Addr {
+    // --snip--
+}
+
+struct Ipv6Addr {
+    // --snip--
+}
+
+enum IpAddr {
+    V4(Ipv4Addr),
+    V6(Ipv6Addr),
+}
+```
+
+The given enum `Message` has four variants with different types:
+
+- `Quit` has no data associated with it at all.
+- `Move` has name fields, like a struct does.
+- `Write` includes a single `String`.
+- `ChangeColor` includes three `i32` values.
+
+```rust
+enum Message {
+    Quit,
+    Move {x: i32, y: i32},
+    Write(String),
+    ChangeColor(i32,i32,i32),
+}
+
+// this is an equivalent structs
+struct QuitMessage; // unit struct
+struct MoveMessage {
+    x: i32,
+    y: i32,
+}
+struct WriteMessage(String); // tuple struct
+struct ChangeColorMessage(i32, i32, i32); // tuple struct
+```
+
+```rust
+impl Message {
+    fn call(&self) {
+        // method body would be defined here
+    }
+}
+
+let m = Message::Write(String::from("hello"));
+m.call();
+```
+
+### The Option Enum and its Advantages Over Null Values
+
+Rust does not have nulls, but it does have an enum that can encode the concept of a value being present or absent. 
+
+```rust
+enum Option<T> {
+    None, 
+    Some(T),
+}
+```
+
+The `Option<T>` enum is so useful; you don't need to bring it into scope explicitly. Its variants are also 
 
 
 
