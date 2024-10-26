@@ -40,6 +40,16 @@
 - [Enums and Pattern Matching](#enums-and-pattern-matching)
   * [Defining an Enum](#defining-an-enum)
     + [Enum Values](#enum-values)
+  * [The Option Enum and its Advantages Over Null Values](#the-option-enum-and-its-advantages-over-null-values)
+  * [The match Control Flow Construct](#the-match-control-flow-construct)
+    + [Patterns that bind to values](#patterns-that-bind-to-values)
+    + [Matching with Option<T>](#matching-with-option-t-)
+    + [Matches Are Exhaustive](#matches-are-exhaustive)
+    + [Catch-all Patterns and the _ Placeholder](#catch-all-patterns-and-the---placeholder)
+  * [Concise Control Flow with if let](#concise-control-flow-with-if-let)
+    + [Option & Result](#option---result)
+      - [Option](#option)
+      - [Result](#result)
 
 <small><i><a href='http://ecotrust-canada.github.io/markdown-toc/'>Table of contents generated with markdown-toc</a></i></small>
 
@@ -1318,6 +1328,11 @@ struct MoveMessage {
 }
 struct WriteMessage(String); // tuple struct
 struct ChangeColorMessage(i32, i32, i32); // tuple struct
+
+let sample = Message::Write(String::from("hello"));
+let sample2 = Message::Quit;
+let sample3 = Message::Move(12, 43);
+let sample4 = Message::ChangeColor(234,567,234);
 ```
 
 ```rust
@@ -1342,61 +1357,335 @@ enum Option<T> {
 }
 ```
 
-The `Option<T>` enum is so useful; you don't need to bring it into scope explicitly. Its variants are also 
+The `Option<T>` enum is so useful; you don't need to bring it into scope explicitly. Its variants are also included in the prelude: `Some` and `None` can be directly used without the `Option::` prefix.
+
+```rust
+let some_number = Some(5);
+let some_char = Some('e');
+
+let absent_number: Option<i32> = None;
+```
+> Notes: `Option<T>` and `T` where `T` can be any type are different types, the compiler won't let us use an `Option<T>` value as if it were definitely a valid value.
+
+### The match Control Flow Construct
+
+```rust
+enum Coin {
+    Penny,
+    Nickel,
+    Dime,
+    Quarter,
+}
+fn value_in_cents(coin: Coin) -> u8 {
+    match coin {
+        Coin::Penny => {
+            println!("Lucky penny!");
+            1
+        }
+        Coin::Nickel => 5,
+        Coin::Dime => 10,
+        Coin::Quarter => 25,
+    }
+}
+fn main() {
+    let coin = Coin::Penny;
+    let value = value_in_cents(coin);
+    println!("The value of the coin is: {} cents", value);
+}
+
+```
+
+#### Patterns that bind to values
+
+```rust
+enum UsState {
+    Albama,
+    Alaska,
+    // --snip--
+}
+
+enum Coin {
+    Penny,
+    Nickel,
+    Dime,
+    Quarter,
+}
+fn value_in_cents(coin: Coin) -> u8 {
+    match coin {
+        Coin::Penny => {
+            println!("Lucky penny!");
+            1
+        }
+        Coin::Nickel => 5,
+        Coin::Dime => 10,
+        Coin::Quarter(state) => {
+            println!("State quarter from {state:?}!");
+            25
+        },
+    }
+}
+
+```
+
+#### Matching with Option<T>
+
+```rust
+fn main() {
+    fn plus_one(x: Option<i32>) -> Option<i32> {
+        match x {
+            None => None,
+            Some(i) => Some(i + 1),
+        }
+    }
+
+    let five = Some(5);
+    let six = plus_one(five);
+    let none = plus_one(None);
+}
+```
+
+#### Matches Are Exhaustive
+
+```rust
+fn plus_one(x: Option<i32>) -> Option<i32> {
+    match x {
+        Some(i) => Some(i+1),
+    }
+}
+/*
+$ cargo run
+   Compiling enums v0.1.0 (file:///projects/enums)
+error[E0004]: non-exhaustive patterns: `None` not covered
+ --> src/main.rs:3:15
+  |
+3 |         match x {
+  |               ^ pattern `None` not covered
+  |
+note: `Option<i32>` defined here
+ --> /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/option.rs:571:1
+ ::: /rustc/129f3b9964af4d4a709d1383930ade12dfe7c081/library/core/src/option.rs:575:5
+  |
+  = note: not covered
+  = note: the matched value is of type `Option<i32>`
+help: ensure that all possible cases are being handled by adding a match arm with a wildcard pattern or an explicit pattern as shown
+  |
+4 ~             Some(i) => Some(i + 1),
+5 ~             None => todo!(),
+  |
+
+For more information about this error, try `rustc --explain E0004`.
+error: could not compile `enums` (bin "enums") due to 1 previous error
+*/
+```
+
+#### Catch-all Patterns and the _ Placeholder
+
+```rust
+let dice_roll = 9;
+match dice_roll {
+    3 => add_fancy_hat(),
+    7 => remove_fancy_hat(),
+    other => move_player(other),
+}
+
+fn add_fancy_hat() {}
+fn remove_fancy_hat() {}
+fn move_player(num_spaces: u8) {}
+```
+
+Alternatively, you can use:
+
+```rust
+let dice_roll = 9;
+match dice_roll {
+    3 => add_fancy_hat(),
+    7 => remove_fancy_hat(),
+    _ => (),
+}
+
+fn add_fancy_hat() {}
+fn remove_fancy_hat() {}
+```
+
+### Concise Control Flow with if let
+
+```rust
+fn main() {
+    let config_max = Some(3u8);
+    match config_max {
+        Some(max) => println!("The maximum is configured to be {max}"),
+        _ => (),
+    }
+}
+```
+
+Alternatively, you could use
+
+```rust
+fn main() {
+    let config_max = Some(3u8);
+    if let Some(max) = config_max {
+        println!("The maximum is configured to be {max}");
+    }
+}
+```
+
+Exact analogy of `match`:
+
+```rust
+match my_variable {
+    Some(x) => {
+        println!("value is {}", x);
+    },
+    None => {
+        println!("no value");
+    }
+}
+
+match my_variable {
+    _ => {
+        println!("who cares");
+    },
+}
+
+let x = match my_variable {
+    Some(x) => x.squared() + 1,
+    None => 42,
+};
+```
+
+#### Option & Result
+
+##### Option
+
+```rust
+let mut x: Option<i32> = None;
+x = Some(5);
+x.is_some();
+x.is_none();
+
+for i in x {
+    println!("{}", i);
+}
+```
+
+##### Result
+
+```rust
+#[must_use]
+
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+```
+
+
+```rust
+use std::fs::File;
+
+fn main() {
+    File::open("foo");
+}
+
+/*
+warning: unused `Result` that must be used
+  --> src/main.rs:42:5
+   |
+42 |     File::open("foo");
+   |     ^^^^^^^^^^^^^^^^^
+   |
+   = note: this `Result` may be an `Err` variant, which should be handled
+   = note: `#[warn(unused_must_use)]` on by default
+help: use `let _ = ...` to ignore the resulting value
+   |
+42 |     let _ = File::open("foo");
+   |     +++++++
+*/
+
+// Correction:
+
+use std::fs::File;
+
+fn main() {
+    let res = File::open("foo");
+    let f = res.unwrap();
+}
+
+// output =>
+// thread 'main' panicked at src/main.rs:43:17:
+// called `Result::unwrap()` on an `Err` value: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+
+// Correction:
+use std::fs::File;
+
+fn main() {
+    let res = File::open("foo");
+    let f = res.unwrap();
+}
+
+// output =>
+// thread 'main' panicked at src/main.rs:43:17:
+// error message: Os { code: 2, kind: NotFound, message: "No such file or directory" }
+// stack backtrace:
+//    0: rust_begin_unwind
+//              at /rustc/f6e511eec7342f59a25f7c0534f1dbea00d01b14/library/std/src/panicking.rs:662:5
+//    1: core::panicking::panic_fmt
+//              at /rustc/f6e511eec7342f59a25f7c0534f1dbea00d01b14/library/core/src/panicking.rs:74:14
+//    2: core::result::unwrap_failed
+//              at /rustc/f6e511eec7342f59a25f7c0534f1dbea00d01b14/library/core/src/result.rs:1677:5
+//    3: core::result::Result<T,E>::expect
+//              at /rustc/f6e511eec7342f59a25f7c0534f1dbea00d01b14/library/core/src/result.rs:1059:23
+//    4: enums::main
+//              at ./src/main.rs:43:13
+//    5: core::ops::function::FnOnce::call_once
+//              at /rustc/f6e511eec7342f59a25f7c0534f1dbea00d01b14/library/core/src/ops/function.rs:250:5
+// note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+
+// Correction:
+use std::fs::File;
+
+fn main() {
+    let res = File::open("foo");
+    if res.is_ok() {
+        let f = res.unwrap();
+    }
+}
+
+// match analogy
+use std::fs::File;
+
+fn main() {
+    let res = File::open("foo");
+    match res {
+        Ok(f) => { /* do stuff */ },
+        Err(e) => { /* do stuff */ },
+    }
+}
+
+```
+
+## Managing Growing Projects with Packages, Crates and Modules
+
+- `Packages` - A Cargo feature that lets you build, test and share crates.
+- `Crates` - A tree of modules that produces a library or executable.
+- `Modules and use` - Let you control the organization, scope and privacy of paths.
+- `Paths` - A way of naming an item, such as a struct, function or module.
+
+### Packages and Crates
+
+A `crate` is the smallest amount of code that Rust compiler considers at a time. It can come in one of two forms: *binary crate* or *library crate*. <br/> 
+
+*Binary crates* are programs you can compile to an executable that you can run, such as a command-line program or a server. Each must have a function called `main` that defines what happens when the executable runs. 
+
+*Library crates* don't have a `main` function, and they don't compile to an executable.
+
+> Usually by crate you mean *library crate*.
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+### Defining Modules to Control Scope and Privacy
+### Paths for Referring to an item in the Module Tree
+### Bringing Paths Into Scope with the use Keyword
+### Separating Modules into Different Files
 
