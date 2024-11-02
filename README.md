@@ -1765,6 +1765,17 @@ crate
 
 ### Paths for Referring to an item in the Module Tree
 
+A path can take two forms:
+
+- An *absolute path* is the full path starting from a crate root:
+  - For code from an external crate, the absolute path begins with the crate name.
+  - For code from the current crate, it starts with the literal `crate`.
+- A *relative path* starts from the current modules and uses `self`, `super` or an identifier in the current module.
+
+```rust
+// sr
+```
+
 
 
 ### Bringing Paths Into Scope with the use Keyword
