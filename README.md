@@ -1768,16 +1768,216 @@ crate
 A path can take two forms:
 
 - An *absolute path* is the full path starting from a crate root:
-  - For code from an external crate, the absolute path begins with the crate name.
-  - For code from the current crate, it starts with the literal `crate`.
-- A *relative path* starts from the current modules and uses `self`, `super` or an identifier in the current module.
+  - For code from an external crate, the absolute path begins with the crate name. ` crate::front_of_house::hosting::add_to_waitlist(); `
+  - For code from the current crate, it starts with the literal `crate`. 
+- A *relative path* starts from the current modules and uses `self`, `super` or an identifier in the current module. `front_of_house::hosting::add_to_waitlist();`
 
 ```rust
-// sr
+Directory Structure:
+
+└── ./
+    └── modules_2
+        └── src
+            ├── front_of_house
+            │   ├── hosting.rs
+            │   ├── mod.rs
+            │   └── serving.rs
+            └── main.rs
+
+
+
+---
+File: /modules_2/src/front_of_house/hosting.rs
+---
+
+pub fn add_to_waitlist() {
+    println!("Adding to waitlist.");
+}
+fn seat_at_table() {
+    println!("Seating at table.");
+}
+
+
+---
+File: /modules_2/src/front_of_house/mod.rs
+---
+
+pub mod hosting;
+mod serving;
+
+fn take_order() {
+    println!("taking order.");
+}
+
+
+
+---
+File: /modules_2/src/front_of_house/serving.rs
+---
+
+fn take_order() {
+    println!("taking order");
+}
+
+fn serve_order() {
+    println!("serving order");
+}
+
+fn take_payment() {
+    println!("taking payment");
+}
+
+
+---
+File: /modules_2/src/main.rs
+---
+
+mod front_of_house;
+
+fn main() {
+    // Access the public `add_to_waitlist` function
+    front_of_house::hosting::add_to_waitlist();
+
+    // The following line would cause an error because `seat_at_table` is private
+    // front_of_house::hosting::seat_at_table();
+
+}
+```
+
+#### Now nitpicks for the above ?
+
+```rust
+mod front_of_house {
+    mod hosting {
+        fn add_to_waitlist() {}
+    }
+}
+
+pub fn eat_at_restaurant() {
+    // Absolute path
+    crate::front_of_house::hosting::add_to_waitlist(); // module `hosting` is private
+
+    // Relative path
+    front_of_house::hosting::add_to_waitlist(); // module `hosting` is private
+}
+```
+
+> Items in a parent module can’t use the private items inside child modules, but items in child modules can use the items in their ancestor modules. 
+>
+> This is because child modules wrap and hide their implementation details, but the child modules can see the context in which they’re defined. 
+>
+> To continue with our metaphor, think of the privacy rules as being like the back office of a restaurant: what goes on in there is private to restaurant customers, but office managers can see and do everything in the restaurant they operate.
+
+```rust
+mod front_of_house {
+    pub mod hosting {
+        fn add_to_waitlist() {} 
+    }
+}
+
+pub fn eat_at_restaurant() {
+    // Absolute path
+    crate::front_of_house::hosting::add_to_waitlist(); // function `add_to_waitlist` is private
+
+    // Relative path
+    front_of_house::hosting::add_to_waitlist(); // function `add_to_waitlist` is private
+}
+```
+
+> Adding the `pub` keyword in front of `mod hosting` makes the module public. 
+>
+> With this change, if we can access `front_of_house`, we can access `hosting`. 
+>
+> But the *contents* of `hosting` are still private; making the module public doesn’t make its contents public. 
+>
+> The `pub` keyword on a module only lets code in its ancestor modules refer to it, not access its inner code. 
+>
+> Because modules are containers, there’s not much we can do by only making the module public; we need to go further and choose to make one or more of the items within the module public as well.
+
+```rust
+// correction
+mod front_of_house {
+    pub mod hosting {
+        pub fn add_to_waitlist() {}
+    }
+}
+
+pub fn eat_at_restaurant() {
+    // Absolute path
+    crate::front_of_house::hosting::add_to_waitlist();
+
+    // Relative path
+    front_of_house::hosting::add_to_waitlist();
+}
+```
+
+#### Starting relative paths with super
+
+We can construct relative paths that begin in the parent module, rather than the current module or the crate root, by using `super` at the start of the path. 
+
+```rust
+fn deliver_order() {}
+
+mod back_of_house {
+    fn fix_incorrect_order() {
+        cook_order();
+        super::deliver_order();
+    }
+
+    fn cook_order() {}
+}
+```
+
+#### Making Structs and Enums Public
+
+```rust
+mod back_of_house {
+    pub struct Breakfast {
+        pub toast: String,
+        seasonal_fruit: String,
+    }
+
+    impl Breakfast {
+        pub fn summer(toast: &str) -> Breakfast {
+            Breakfast {
+                toast: String::from(toast),
+                seasonal_fruit: String::from("peaches"),
+            }
+        }
+    }
+}
+
+pub fn eat_at_restaurant() {
+    // Order a breakfast in the summer with Rye toast
+    let mut meal = back_of_house::Breakfast::summer("Rye");
+    // Change our mind about what bread we'd like
+    meal.toast = String::from("Wheat");
+    println!("I'd like {} toast please", meal.toast);
+
+    // The next line won't compile if we uncomment it; we're not allowed
+    // to see or modify the seasonal fruit that comes with the meal
+    // meal.seasonal_fruit = String::from("blueberries");
+}
+```
+
+```rust
+mod back_of_house {
+    pub enum Appetizer {
+        Soup,
+        Salad,
+    }
+}
+
+pub fn eat_at_restaurant() {
+    let order1 = back_of_house::Appetizer::Soup;
+    let order2 = back_of_house::Appetizer::Salad;
+}
+
 ```
 
 
 
 ### Bringing Paths Into Scope with the use Keyword
+
 ### Separating Modules into Different Files
 
